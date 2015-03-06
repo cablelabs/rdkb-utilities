@@ -1,0 +1,91 @@
+diff --git a/agent/mibgroup/agentx/subagent.c b/agent/mibgroup/agentx/subagent.c
+index 5d51834..156bf16 100644
+--- a/agent/mibgroup/agentx/subagent.c
++++ b/agent/mibgroup/agentx/subagent.c
+@@ -586,7 +586,6 @@ handle_subagent_set_response(int op, netsnmp_session * session, int reqid,
+     netsnmp_session *retsess;
+     struct agent_netsnmp_set_info *asi;
+     int result;
+-
+     if (op != NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE || magic == NULL) {
+         return 1;
+     }
+@@ -629,12 +628,21 @@ handle_subagent_set_response(int op, netsnmp_session * session, int reqid,
+         snmp_free_varbind(pdu->variables);
+         pdu->variables = NULL;  /* the variables were added by us */
+     }
+-
+-    netsnmp_assert(retsess != NULL);
+-    pdu->command = AGENTX_MSG_RESPONSE;
+-    pdu->version = retsess->version;
+-
++    if(retsess != NULL)
++    {
++    	netsnmp_assert(retsess != NULL);
++        if(pdu != NULL)
++    	{
++	    	pdu->command = AGENTX_MSG_RESPONSE;
++	        pdu->version = retsess->version;
++	}
++	else
++	{
++		printf("SNMP : PDU NULL \n");
++	}
++    }
+     if (!snmp_send(retsess, pdu)) {
++        if(pdu != NULL)
+         snmp_free_pdu(pdu);
+     }
+     DEBUGMSGTL(("agentx/subagent", "  FINISHED\n"));
+diff --git a/snmplib/snmp_api.c b/snmplib/snmp_api.c
+index df0dc1c..13ae0aa 100644
+--- a/snmplib/snmp_api.c
++++ b/snmplib/snmp_api.c
+@@ -5077,6 +5077,7 @@ void
+ snmp_free_pdu(netsnmp_pdu *pdu)
+ {
+     struct snmp_secmod_def *sptr;
++    static netsnmp_pdu *pdu_temp=NULL;
+ 
+     if (!pdu)
+         return;
+@@ -5105,6 +5106,19 @@ snmp_free_pdu(netsnmp_pdu *pdu)
+         sptr->pdu_free != NULL) {
+         (*sptr->pdu_free) (pdu);
+     }
++
++       /*Added below lines to make sure if pdu variable is zero or
++	equal to the previous one than no need to free it.*/
++
++	if(pdu->variables==0)
++	{
++	     return;
++	}
++	else if((pdu_temp) && (pdu_temp->variables==pdu->variables)&&(pdu_temp == pdu))
++	{
++    	     return;
++        }
++
+     snmp_free_varbind(pdu->variables);
+     SNMP_FREE(pdu->enterprise);
+     SNMP_FREE(pdu->community);
+@@ -5114,7 +5128,10 @@ snmp_free_pdu(netsnmp_pdu *pdu)
+     SNMP_FREE(pdu->securityName);
+     SNMP_FREE(pdu->transport_data);
+     memset(pdu, 0, sizeof(netsnmp_pdu));
++    pdu_temp = pdu;
++
+     free((char *) pdu);
++    return;
+ }
+ 
+ netsnmp_pdu    *
+@@ -6629,7 +6646,7 @@ netsnmp_oid_find_prefix(const oid * in_name1, size_t len1,
+     min_size = SNMP_MIN(len1, len2);
+     for(i = 0; i < (int)min_size; i++) {
+         if (in_name1[i] != in_name2[i])
+-            return i;    /* 'í' is the first differing subidentifier
++            return i;    /* '\ED' is the first differing subidentifier
+                             So the common prefix is 0..(i-1), of length i */
+     }
+     return min_size;	/* The shorter OID is a prefix of the longer, and

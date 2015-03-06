@@ -1,0 +1,26 @@
+diff --git a/configure b/configure
+index 55b3357..56f52bf 100755
+--- a/configure
++++ b/configure
+@@ -20245,7 +20245,7 @@ done
+ $as_echo_n "checking for and configuring mib modules to use... " >&6; }
+
+ # set up the CPP command
+-MODULECPP="$CPP $PARTIALTARGETFLAGS -DNETSNMP_FEATURE_CHECKING -I${srcdir}/include -I${srcdir}/agent/mibgroup"
++MODULECPP="$CPP $PARTIALTARGETFLAGS $CPPFLAGS -DNETSNMP_FEATURE_CHECKING -I${srcdir}/include -I${srcdir}/agent/mibgroup"
+ if test "x$enable_mfd_rewrites" = "xyes"; then
+   MODULECPP="$MODULECPP -DNETSNMP_ENABLE_MFD_REWRITES"
+ fi
+diff --git a/configure.d/config_modules_agent b/configure.d/config_modules_agent
+index 60b119b..7e29255 100644
+--- a/configure.d/config_modules_agent
++++ b/configure.d/config_modules_agent
+@@ -28,7 +28,7 @@ done
+ AC_MSG_CHECKING([for and configuring mib modules to use])
+
+ # set up the CPP command
+-MODULECPP="$CPP $PARTIALTARGETFLAGS -DNETSNMP_FEATURE_CHECKING -I${srcdir}/include -I${srcdir}/agent/mibgroup"
++MODULECPP="$CPP $PARTIALTARGETFLAGS $CPPFLAGS -DNETSNMP_FEATURE_CHECKING -I${srcdir}/include -I${srcdir}/agent/mibgroup"
+ if test "x$enable_mfd_rewrites" = "xyes"; then
+   MODULECPP="$MODULECPP -DNETSNMP_ENABLE_MFD_REWRITES"
+ fi

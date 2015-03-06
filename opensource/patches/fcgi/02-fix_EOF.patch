@@ -1,0 +1,32 @@
+Index: fcgi-2.4.0/libfcgi/fcgio.cpp
+===================================================================
+--- fcgi-2.4.0.orig/libfcgi/fcgio.cpp	2014-07-02 14:44:12.290245253 -0400
++++ fcgi-2.4.0/libfcgi/fcgio.cpp	2014-07-02 14:44:21.252726249 -0400
+@@ -22,6 +22,7 @@
+ #define DLLAPI  __declspec(dllexport)
+ #endif
+ 
++#include <stdio.h>
+ #include <limits.h>
+ #include "fcgio.h"
+ 
+Index: fcgi-2.4.0/libfcgi/fcgiapp.c
+===================================================================
+--- fcgi-2.4.0.orig/libfcgi/fcgiapp.c	2014-07-02 14:50:32.790194293 -0400
++++ fcgi-2.4.0/libfcgi/fcgiapp.c	2014-07-02 14:50:48.270232976 -0400
+@@ -606,13 +606,13 @@
+                         switch(sizeModifier) {
+                             case ' ':
+                                 doubleArg = va_arg(arg, double);
+-				                frexp(doubleArg, &exp);
++				                //frexp(doubleArg, &exp);
+                                 break;
+                             case 'L':
+                                 lDoubleArg = va_arg(arg, LONG_DOUBLE);
+                                 /* XXX Need to check for the presence of 
+                                  * frexpl() and use it if available */
+-				                frexp((double) lDoubleArg, &exp);
++				                //frexp((double) lDoubleArg, &exp);
+                                 break;
+                             default:
+                                 goto ErrorReturn;

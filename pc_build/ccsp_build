@@ -1,0 +1,213 @@
+#! /bin/bash
+#
+
+#######################################################################
+#   Copyright [2014] [Cisco Systems, Inc.]
+# 
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+# 
+#       http://www.apache.org/licenses/LICENSE-2.0
+# 
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#######################################################################
+
+#
+# Constant Definitions
+#
+CCSP_ARCH_DIR_NAME=arch
+CCSP_BOARDS_DIR_NAME=boards
+CCSP_CUSTOM_DIR_NAME=custom
+CCSP_CONFIG_DIR_NAME=config
+CCSP_SCRIPTS_DIR_NAME=scripts
+CCSP_SOURCE_DIR_NAME=source
+CCSP_OUTPUT_DIR_NAME=Out
+CCSP_BUILD_CUSTOM_MAKEFILE=ccsp_build_custom.mk
+CCSP_BUILD_COMMON_MAKEFILE=ccsp_build_common.mk
+CCSP_CMPNT_BUILD_CUSTOM_MK_PRE=cmpnt_build_custom_pre.mk
+CCSP_CMPNT_BUILD_CUSTOM_MK_POST=cmpnt_build_custom_post.mk
+CCSP_CMPNT_COMMON_MK=ccsp_cmpnt_common.mk
+
+export CCSP_ARCH_DIR_NAME=$CCSP_ARCH_DIR_NAME
+export CCSP_CUSTOM_DIR_NAME=$CCSP_CUSTOM_DIR_NAME
+export CCSP_BOARDS_DIR_NAME=$CCSP_BOARDS_DIR_NAME
+export CCSP_CONFIG_DIR_NAME=$CCSP_CONFIG_DIR_NAME
+export CCSP_SCRIPTS_DIR_NAME=$CCSP_SCRIPTS_DIR_NAME
+export CCSP_SOURCE_DIR_NAME=$CCSP_SOURCE_DIR_NAME
+export CCSP_BUILD_CUSTOM_MAKEFILE=$CCSP_BUILD_CUSTOM_MAKEFILE
+export CCSP_BUILD_COMMON_MAKEFILE=$CCSP_BUILD_COMMON_MAKEFILE
+export CCSP_CMPNT_BUILD_CUSTOM_MK_PRE=$CCSP_CMPNT_BUILD_CUSTOM_MK_PRE
+export CCSP_CMPNT_BUILD_CUSTOM_MK_POST=$CCSP_CMPNT_BUILD_CUSTOM_MK_POST
+export CCSP_CMPNT_COMMON_MK=$CCSP_CMPNT_COMMON_MK
+
+CcspArch=pc
+CcspArchDir=$CCSP_ROOT_DIR/$CCSP_ARCH_DIR_NAME/$CcspArch
+CcspBoard=rdkb
+CcspCustomer=ga
+
+Board=pc
+Resetup=
+Cleanup=
+Clobber=
+COPY_LIB=
+Inst=install
+BUILD_DBG=0
+
+#
+#  set up base environmental variables
+#
+export LD_LIBRARY_PATH=
+export BUILD_DBG=0
+
+CCSP_ROOT_DIR=$PWD
+export CCSP_ROOT_DIR=$CCSP_ROOT_DIR
+export CCSP_COMMON_DIR=$CCSP_ROOT_DIR/CcspCommonLibrary
+export CCSP_OUT_DIR=$CCSP_ROOT_DIR/$CCSP_OUTPUT_DIR_NAME/$CcspArch/$CcspBoard
+
+#
+#  Syntax check
+#
+if [ "x"$1 = "x" ] || [ "x"$2 = "x" ]; then
+    echo "Usage: ccsp_build <arch> <board> [clean] [dbg] [lib]"
+    echo "       arch:      pc"
+    echo "       board:     see the boards directories under each arch, e.g."
+    echo "                  pc            - rdkb"
+
+    echo "       clean      -- run make clean before build"
+    echo "       clobber    -- run make clean, remove all output from previous build "
+    echo "       dbg        -- debug version"
+    echo "       lib        -- copy OE library"
+
+    echo "       recommended usage:"
+    echo "       based on your board, run ccsp_setenv_xxx.sh, for example, . ccsp_setenv_pc.sh"
+    echo "       export CcspTarget if you want to build specific component"
+    exit 1
+fi
+
+#
+# arch
+#
+CcspArch=$1
+CcspArchDir=$CCSP_ROOT_DIR/$CCSP_ARCH_DIR_NAME/$CcspArch
+
+if [ ! -d $CcspArchDir ]; then
+    echo "Invalid arch name: $CcspArch"
+    exit 1
+else
+    export CcspArch=$CcspArch
+    export CcspArchDir=$CcspArchDir
+fi
+
+#
+# board
+#
+CcspBoard=$2
+CcspBoardDir=$CcspArchDir/$CCSP_BOARDS_DIR_NAME/$CcspBoard
+
+if [ ! -d $CcspBoardDir ]; then
+    echo "Invalid board $CcspBoard for arch $CcspArch"
+    exit 1
+else
+    export CcspBoard=$CcspBoard
+    export CcspBoardDir=$CcspBoardDir
+    # backwards compatibility
+    export Board=$CcspBoard
+fi
+
+#
+# customer
+#
+export CcspCustomer=$CcspCustomer
+
+#
+# export CCSP output directory
+#
+export CCSP_OUT_DIR=$CCSP_ROOT_DIR/$CCSP_OUTPUT_DIR_NAME/$CcspArch/$CcspBoard
+
+echo ""
+echo "CCSP build -- arch: $CcspArch, board: $CcspBoard"
+
+for parm in $3 $4 $5 $6 $7 $8 $9 $10
+do 
+    case $parm in
+        "dbg")export BUILD_DBG=1;;
+        "nodbg")export BUILD_DBG=0;;
+        "prod")export BUILD_PROD=1;;
+        "clean")Cleanup=clean;;
+        "clobber")
+          Cleanup=clean
+          Clobber=clobber
+          ;;
+        "lib")COPY_LIB="COPY_LIB=1";;
+    esac
+done
+
+echo "Build option: dbg="$BUILD_DBG" "$Cleanup" "$Clobber" "$Resetup" "
+export BUILD_DBG=$BUILD_DBG
+
+#
+#  set up environmental variables per build options
+#
+
+#
+# =====***** include custom build files, first try arch level, then board level *****=====
+#
+if [ -e $CcspArchDir/$CCSP_BUILD_CUSTOM_MAKEFILE ]; then
+    source $CcspArchDir/$CCSP_BUILD_CUSTOM_MAKEFILE
+elif [ -e $CcspBoardDir/$CCSP_BUILD_CUSTOM_MAKEFILE ]; then
+    source $CcspBoardDir/$CCSP_BUILD_CUSTOM_MAKEFILE
+else
+    echo "Failed to load $CCSP_BUILD_CUSTOM_MAKEFILE, please ensure it is located in either $CcspArchDir or $CcspBoardDir!"
+    exit 1
+fi
+
+
+if [ x"$Cleanup" != "x" ]; then
+	rm -Rf Out
+fi
+
+# ***************** Building Open Source Dependencies ************************************************
+# There is a good chance that this part of the script will be separated out when open source
+# packages are built separately. For now, lets leave this here.
+echo "Building OpenSource"
+if [ x"$Clobber" == "x" ]; then
+	OPENSOURCE_DIR=$CCSP_ROOT_DIR/opensource
+	$OPENSOURCE_DIR/build_modules.sh
+	if [ $? -ne 0 ]; then
+		echo "Something went wrong... If its the download, check if you are behind a proxy."
+		echo "If so, then set environment variable HTTP_PROXY=http://proxyurl:proxyport/"
+		exit 2
+	fi
+fi
+
+# *****************************************************************************************************
+
+echo "Building components: $CcspTarget"
+
+for dir in $CcspTarget
+do
+#	if [ -e $dir/Makefile_$Board ] ; then
+#	   makefile=Makefile_$Board
+#	else   
+	   makefile=Makefile
+#	fi
+	
+	if [ "x"$Cleanup != "x" ];then
+		make -C $dir clean -f $makefile
+	fi
+	
+	if [ "x"$Clobber == "x" ]; then
+	    make all -C $dir -j1 -f $makefile
+	    if [ $? -ne 0 ]; then echo "*** make $dir error"; exit 2; fi ; 
+	    make -C $dir install -f $makefile
+	fi
+done
+
+find $CCSP_OUT_DIR -name "*.svn" | xargs /bin/rm -Rf
+
+echo "==== Cosa Build Done ===="

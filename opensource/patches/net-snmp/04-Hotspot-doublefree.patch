@@ -1,0 +1,23 @@
+diff --git a/snmplib/snmp_api.c b/snmplib/snmp_api.c
+index df0dc1c..802d22d 100644
+--- a/snmplib/snmp_api.c
++++ b/snmplib/snmp_api.c
+@@ -5064,9 +5064,16 @@ snmp_free_varbind(netsnmp_variable_list * var)
+ {
+     netsnmp_variable_list *ptr;
+     while (var) {
+-        ptr = var->next_variable;
+-        snmp_free_var(var);
+-        var = ptr;
++        if(var->next_variable != NULL)
++        {
++           ptr = var->next_variable;
++           snmp_free_var(var);
++           var = ptr;
++        }
++        else
++        {
++           break;
++        }
+     }
+ }

@@ -1,0 +1,85 @@
+diff -Nuar a/upnp/src/ssdp/ssdp_ctrlpt.c b/upnp/src/ssdp/ssdp_ctrlpt.c
+--- a/upnp/src/ssdp/ssdp_ctrlpt.c	2013-01-29 21:50:42.000000000 +0800
++++ b/upnp/src/ssdp/ssdp_ctrlpt.c	2013-04-25 17:23:40.154961000 +0800
+@@ -123,7 +123,8 @@
+ 	param.Expires = -1;
+ 	if (httpmsg_find_hdr(hmsg, HDR_CACHE_CONTROL, &hdr_value) != NULL) {
+ 		if (matchstr(hdr_value.buf, hdr_value.length,
+-			     "%imax-age = %d%0", &param.Expires) != PARSE_OK)
++			     "%imax-age = %d%0", &param.Expires) != PARSE_OK && matchstr(hdr_value.buf, hdr_value.length,
++			     "%ino-cache=\"Ext\", max-age = %d%0", &param.Expires) != PARSE_OK)
+ 			return;
+ 	}
+ 	/* DATE */
+@@ -227,6 +228,13 @@
+ 		    strlen(param.Location) == 0 || !usn_found || !st_found) {
+ 			return;	/* bad reply */
+ 		}
++		//In response, we should find device or service type in ST header
++		if (st_found) {
++			//strncpy(param.DeviceId, event.UDN, sizeof(param.DeviceId) - 1);
++			strncpy(param.DeviceType, event.DeviceType, sizeof(param.DeviceType) - 1);
++			strncpy(param.ServiceType, event.ServiceType, sizeof(param.ServiceType) - 1);
++		}
++
+ 		/* check each current search */
+ 		HandleLock();
+ 		if (GetClientHandleInfo(&handle, &ctrlpt_info) != HND_CLIENT) {
+diff -Nuar a/upnp/src/ssdp/ssdp_device.c b/upnp/src/ssdp/ssdp_device.c
+--- a/upnp/src/ssdp/ssdp_device.c	2012-12-07 01:41:49.000000000 +0800
++++ b/upnp/src/ssdp/ssdp_device.c	2013-04-25 17:16:00.509070000 +0800
+@@ -191,6 +191,9 @@
+ #endif
+ 	char buf_ntop[INET6_ADDRSTRLEN];
+ 	int ret = UPNP_E_SUCCESS;
++	int fd = -1;
++    int nread = -1;
++    char rbuf[16] = {'\0'}; 
+ 
+ 	ReplySock = socket((int)DestAddr->sa_family, SOCK_DGRAM, 0);
+ 	if (ReplySock == INVALID_SOCKET) {
+@@ -202,6 +205,19 @@
+ 		return UPNP_E_OUTOF_SOCKET;
+ 	}
+ 
++    /* 
++     * TTL is configurable from WEBUI. Values set will be stored into /var/tmp/upnp.ttl
++     * Backend or igd service handler will feed user-set ttl values into this file
++     */
++    ttl = 5;    // USGv2 default values
++    fd = open("/var/tmp/upnp.ttl", O_RDONLY);
++    if (fd != -1){
++        nread = read(fd, rbuf, sizeof(rbuf));
++        if (nread != -1)
++            ttl = atoi(rbuf);
++    }
++    close(fd);
++
+ 	switch (DestAddr->sa_family) {
+ 	case AF_INET:
+ 		inet_ntop(AF_INET, &((struct sockaddr_in *)DestAddr)->sin_addr,
+diff -Nuar a/upnp/src/ssdp/ssdp_server.c b/upnp/src/ssdp/ssdp_server.c
+--- a/upnp/src/ssdp/ssdp_server.c	2012-12-07 01:46:09.000000000 +0800
++++ b/upnp/src/ssdp/ssdp_server.c	2013-04-25 17:16:00.532079000 +0800
+@@ -515,6 +515,12 @@
+ 			CommandFound = 1;
+ 		}
+ 	}
++	//patched by cisco to support wecb device
++	if ((TempPtr = strstr(cmd, "hnap:WiFiExtender")) != NULL) {
++		memset(Evt->DeviceType, 0, sizeof(Evt->DeviceType));
++		strncpy(Evt->DeviceType, TempPtr, sizeof(Evt->DeviceType) - 1);
++		CommandFound = 1;
++	}
+ 	if ((TempPtr = strstr(cmd, "::upnp:rootdevice")) != NULL) {
+ 		/* Everything before "::upnp::rootdevice" is the UDN. */
+ 		if (TempPtr != cmd) {
+@@ -539,7 +545,7 @@
+ 		return SSDP_ROOTDEVICE;
+ 	if (strstr(cmd, "uuid:"))
+ 		return SSDP_DEVICEUDN;
+-	if (strstr(cmd, "urn:") && strstr(cmd, ":device:"))
++	if ((strstr(cmd, "urn:") && strstr(cmd, ":device:")) || strstr(cmd, "hnap:WiFiExtender"))
+ 		return SSDP_DEVICETYPE;
+ 	if (strstr(cmd, "urn:") && strstr(cmd, ":service:"))
+ 		return SSDP_SERVICE;
