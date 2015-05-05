@@ -4,7 +4,7 @@
 
 SOURCE_FILELIST="/tmp/source_filelist"
 MAKEFILE_FILELIST="/tmp/makefile_filelist"
-SCRIPTS_FILELIST="/tmp/scripts_filelist"
+SCRIPT_FILELIST="/tmp/script_filelist"
 XML_FILELIST="/tmp/xml_filelist"
 ALL_OTHER_FILELIST="/tmp/all_other_filelist"
 WARN_FILELIST="/tmp/warn_filelist"
@@ -27,7 +27,7 @@ function check_and_log
 
 SOURCE_PATTERN="*.c *.h *.cpp *.hs"
 MAKEFILE_PATTERN="Makefile makefile *.mk"
-SCRIPT_PATTERN="*.sh ccsp_build"
+SCRIPT_PATTERN="ccsp_build"
 XML_PATTERN="*.xml"
 ALL_KNOWN_PATTERNS="$SOURCE_PATTERN $MAKEFILE_PATTERN $SCRIPT_PATTERN $XML_PATTERN"
 
@@ -48,10 +48,15 @@ for pat in $MAKEFILE_PATTERN; do
 done
 
 # Script Files
-echo "" > $SCRIPTS_FILELIST
+echo "" > $SCRIPT_FILELIST
+# for *.sh only since can not put it in "pat"
+for each_file in `find . -type f -iname '*.sh'`; do
+	check_and_log $each_file $SCRIPT_FILELIST
+done
+
 for pat in $SCRIPT_PATTERN; do
 	for each_file in `find . -type f -iname "$pat"`; do
-		check_and_log $each_file $SCRIPTS_FILELIST
+		check_and_log $each_file $SCRIPT_FILELIST
 	done
 done
 
